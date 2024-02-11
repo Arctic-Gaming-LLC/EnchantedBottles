@@ -5,6 +5,7 @@ import dev.arctic.enchantedbottles.utils.ExpUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -18,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
 import org.bukkit.event.block.Action;
 
 public class PlayerInteractEventListener implements Listener {
@@ -30,6 +32,8 @@ public class PlayerInteractEventListener implements Listener {
         Player player = event.getPlayer();
         UUID playerId = player.getUniqueId();
 
+        boolean sharingEnabled = EnchantedBottles.getPlugin().getConfig().getBoolean("share bottles");
+
         // Check cooldown
         if (lastUse.containsKey(playerId) && System.currentTimeMillis() - lastUse.get(playerId) < COOLDOWN_MS) {
             player.sendMessage("Please wait before using this again.");
@@ -38,6 +42,18 @@ public class PlayerInteractEventListener implements Listener {
 
         ItemStack item = player.getInventory().getItemInMainHand();
         ItemMeta meta = item.getItemMeta();
+
+        if (!sharingEnabled) {
+            List<Component> lore = meta.lore();
+            if (lore != null && lore.size() >= 4) {
+                Component playerNameComponent = Component.text(player.getName()).color(EnchantedBottles.SECONDARY_COLOR);
+                Component fourthLoreComponent = lore.get(3);
+                if (!fourthLoreComponent.equals(playerNameComponent)) {
+                    player.sendMessage("You cannot use this!");
+                    return;
+                }
+            }
+        }
 
         Component message = Component.text().content("All stored experience has been returned!").color(TextColor.color(0x4e9456)).build();
 
@@ -68,10 +84,10 @@ public class PlayerInteractEventListener implements Listener {
 
         List<Component> newLore = new ArrayList<>();
         Component lore1 = Component.text("Stored Exp").decorate(TextDecoration.UNDERLINED)
-                .color(TextColor.color(0x4e9456));
-        Component lore2 = Component.text(0).color(TextColor.color(0x4ae252));
-        Component lore3 = Component.text("Created By").decorate(TextDecoration.UNDERLINED).color(TextColor.color(0x4e9456));
-        Component lore4 = Component.text(player.getName()).color(TextColor.color(0x4ae252));
+                .color(TextColor.color(EnchantedBottles.PRIMARY_COLOR));
+        Component lore2 = Component.text(0).color(EnchantedBottles.SECONDARY_COLOR);
+        Component lore3 = Component.text("Created By").decorate(TextDecoration.UNDERLINED).color(EnchantedBottles.PRIMARY_COLOR);
+        Component lore4 = Component.text(player.getName()).color(EnchantedBottles.SECONDARY_COLOR);
         Component lore5 = Component.text("------------").color(TextColor.color(0x525252));
         Component lore6 = Component.text("Left Click to return all levels").color(TextColor.color(0x525252));
         Component lore7 = Component.text("Stand in a cauldron to store exp gradually").color(TextColor.color(0x525252));

@@ -69,49 +69,54 @@ public class PlayerMoveEventListener implements Listener {
     }
 
     private void storePlayerExperience(Player player, boolean isSneaking) {
+        //see how much exp the player has now, if that's 0, then just stop.
         int totalExp = ExpUtil.getTotalExperienceAll(player);
-        if (totalExp == 0) return; // Avoid storing or adjusting if the player has no experience.
+        if (totalExp <= 0) return;
 
-        int expToStore;
-
-        // If sneaking, take all the player's experience.
-        if (isSneaking) {
-            playersInCauldrons.remove(player.getUniqueId());
-            expToStore = totalExp;
-            player.setLevel(0);
-            player.setExp(0);
-        } else {
-            // If not sneaking, just calculate the experience to store as one level's worth.
-            expToStore = ExpUtil.getTotalExperienceLevel(player);
-            removeOneLevelExp(player, totalExp); // Ensure this method properly removes one level worth of EXP.
-        }
-
+        //Get the Bottle's information
         ItemStack item = player.getInventory().getItemInMainHand();
         ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            int storedExp = meta.getPersistentDataContainer().get(EnchantedBottles.key, PersistentDataType.INTEGER);
 
-            updateEnchantedBottle(player, item, meta, storedExp + expToStore);
+        //Initialize values!
+        int bottleExp = meta.getPersistentDataContainer().get(EnchantedBottles.key, PersistentDataType.INTEGER);
+        int maxStorage = EnchantedBottles.MAX_EXP;
+        if (maxStorage == 0) {
+            maxStorage = 2147483647; //set max int value so EXP cannot rollover
         }
-    }
 
-    private void removeOneLevelExp(Player player, int oldExp) {
+        if (bottleExp >= maxStorage) return;
 
-        int difference = ExpUtil.getTotalExperienceLevel(player);
+        int expToStore = 0;
+        //BEGIN LOGIC! Start by resetting player's exp, so we know it will be added back correctly.
+        if (isSneaking) {
+            expToStore = totalExp;
+            if (expToStore > maxStorage) {
+                expToStore = maxStorage;
+            }
+        } else {
+            expToStore = ExpUtil.getTotalExperienceLevel(player);
+            if (expToStore + bottleExp > maxStorage) {
+                expToStore = maxStorage - bottleExp;
+            }
+        }
 
+
+        //We're finally done, so now we update the item and player's experience.
         player.setExp(0);
-        player.setLevel(0);
-        player.giveExp(oldExp - difference);
+        player.setLevel(0); // always reset exp to 0 before giving experience
+        player.giveExp(totalExp - expToStore);
+        updateEnchantedBottle(player, item, meta, bottleExp + expToStore);
     }
 
     static void updateEnchantedBottle(Player player, ItemStack item, ItemMeta meta, int newStoredExp) {
         meta.getPersistentDataContainer().set(EnchantedBottles.key, PersistentDataType.INTEGER, newStoredExp);
 
         List<Component> newLore = new ArrayList<>();
-        Component lore1 = Component.text("Stored Exp").decorate(TextDecoration.UNDERLINED).color(TextColor.color(0x4e9456));
-        Component lore2 = Component.text(String.valueOf(newStoredExp)).color(TextColor.color(0x4ae252));
-        Component lore3 = Component.text("Created By").decorate(TextDecoration.UNDERLINED).color(TextColor.color(0x4e9456));
-        Component lore4 = Component.text(player.getName()).color(TextColor.color(0x4ae252));
+
+        Component lore1 = Component.text("Stored Exp").decorate(TextDecoration.UNDERLINED).color(TextColor.color(EnchantedBottles.PRIMARY_COLOR));
+        Component lore2 = Component.text(String.valueOf(newStoredExp)).color(EnchantedBottles.SECONDARY_COLOR);
+        Component lore3 = Component.text("Created By").decorate(TextDecoration.UNDERLINED).color(EnchantedBottles.PRIMARY_COLOR);
+        Component lore4 = Component.text(player.getName()).color(EnchantedBottles.SECONDARY_COLOR);
         Component lore5 = Component.text("------------").color(TextColor.color(0x525252));
         Component lore6 = Component.text("Left Click to return all levels").color(TextColor.color(0x525252));
         Component lore7 = Component.text("Stand in a cauldron to store exp gradually").color(TextColor.color(0x525252));

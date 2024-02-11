@@ -32,7 +32,7 @@ public class ExpUtil {
         return totalExperience;
     }
 
-    private static int calculateExpToLevel(int level) {
+    public static int calculateExpToLevel(int level) {
         if (level <= 15) {
             return (level * level) + (6 * level);
         } else if (level <= 30) {

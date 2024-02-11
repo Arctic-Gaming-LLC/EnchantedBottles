@@ -1,0 +1,29 @@
+# --- Restrictions ---
+
+# How many levels should a bottle be able to store? 0 for unlimited
+level limit: 0
+
+# Can bottles be given to other players?
+share bottles: true
+
+# --- Customizations
+# All colors are converted from Hex value! If you want to change
+# these values later, it won't update pre-existing items, however
+# old items *should* still function correctly since this plugin is
+# based on item metadata
+#
+# Default Config Options
+# Colors:
+#  title color: "#9455e0"
+#  primary color: "#4e9456"
+#  secondary color: "#4ae252"
+Colors:
+  title color: "#9455e0"
+  primary color: "#4e9456"
+  secondary color: "#4ae252"
+
+# Want to use a different head? Here ya go :D
+# this MUST be a URL pointing at textures.minecraft.net
+# default: "http://textures.minecraft.net/texture/348a7ea198ec4efd8b56bcda8aa4230039e04d1338ee98fa85897bd4f342d632"
+#
+texture url: "http://textures.minecraft.net/texture/348a7ea198ec4efd8b56bcda8aa4230039e04d1338ee98fa85897bd4f342d632"

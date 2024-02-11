@@ -38,10 +38,9 @@ public class EnchantedBottleRecipe {
 
         SkullMeta headMeta = (SkullMeta) item.getItemMeta();
         PlayerProfile profile = Bukkit.createProfile(UUID.randomUUID());
-        String textureURLString = "http://textures.minecraft.net/texture/348a7ea198ec4efd8b56bcda8aa4230039e04d1338ee98fa85897bd4f342d632";
         PlayerTextures textures = profile.getTextures();
         try {
-            textures.setSkin(new URL(textureURLString));
+            textures.setSkin(new URL(EnchantedBottles.plugin.getConfig().getString("texture url")));
             profile.setTextures(textures);
         } catch (MalformedURLException e) {
             throw new RuntimeException(e);
@@ -54,7 +53,7 @@ public class EnchantedBottleRecipe {
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
         meta.getPersistentDataContainer().set(keyInteger, PersistentDataType.INTEGER, 0);
 
-        Component name = Component.text().content("Enchanted Bottle").color(TextColor.color(0x9455e0)).build();
+        Component name = Component.text().content("Enchanted Bottle").color(EnchantedBottles.TITLE_COLOR).build();
         meta.displayName(name);
 
         item.setItemMeta(meta);
