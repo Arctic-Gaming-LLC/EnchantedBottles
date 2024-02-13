@@ -61,8 +61,10 @@ public class PlayerInteractEventListener implements Listener {
             event.setCancelled(true);
             int storedExp = meta.getPersistentDataContainer().get(EnchantedBottles.key, PersistentDataType.INTEGER);
 
+            int currentExp = Math.round(player.getExp());
+
             if (storedExp != 0) {
-                setPlayerExperience(player, ExpUtil.getTotalExperienceAll(player) + storedExp);
+                setPlayerExperience(player, ExpUtil.getTotalExperienceAll(player) + storedExp + currentExp);
                 updateEnchantedBottle(player);
                 player.sendMessage(message);
                 lastUse.put(playerId, System.currentTimeMillis()); // Update last use time
