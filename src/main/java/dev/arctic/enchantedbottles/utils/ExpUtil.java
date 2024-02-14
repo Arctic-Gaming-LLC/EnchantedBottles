@@ -23,13 +23,7 @@ public class ExpUtil {
     }
 
     public static int getTotalExperienceAll(Player player) {
-        int level = player.getLevel();
-        float progress = player.getExp();
-        int totalExperience = calculateExpToLevel(level);
-
-        // Add the progress towards the next level
-        totalExperience += (int) progress;
-        return totalExperience;
+        return player.calculateTotalExperiencePoints();
     }
 
     public static int calculateExpToLevel(int level) {

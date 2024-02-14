@@ -70,7 +70,7 @@ public class PlayerMoveEventListener implements Listener {
 
     private void storePlayerExperience(Player player, boolean isSneaking) {
         //see how much exp the player has now, if that's 0, then just stop.
-        int totalExp = ExpUtil.getTotalExperienceAll(player);
+        int totalExp = player.calculateTotalExperiencePoints();
         if (totalExp <= 0) return;
 
         //Get the Bottle's information
