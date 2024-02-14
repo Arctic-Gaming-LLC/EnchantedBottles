@@ -1,5 +1,6 @@
 package dev.arctic.enchantedbottles;
 
+import dev.arctic.enchantedbottles.listeners.BlockPlaceEventListener;
 import dev.arctic.enchantedbottles.listeners.PlayerInteractEventListener;
 import dev.arctic.enchantedbottles.listeners.PlayerMoveEventListener;
 import dev.arctic.enchantedbottles.recipes.EnchantedBottleRecipe;
@@ -53,6 +54,7 @@ public final class EnchantedBottles extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(this, this);
         final PluginManager pm = getServer().getPluginManager();
         pm.registerEvents(new PlayerInteractEventListener(), this);
+        pm.registerEvents(new BlockPlaceEventListener(), this);
 
         PlayerMoveEventListener moveEventListener = new PlayerMoveEventListener();
         pm.registerEvents(moveEventListener, this);
