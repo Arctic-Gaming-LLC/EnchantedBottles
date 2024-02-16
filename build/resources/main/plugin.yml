@@ -1,5 +1,5 @@
 name: EnchantedBottles
-version: '1.2.3'
+version: '1.2.4'
 main: dev.arctic.enchantedbottles.EnchantedBottles
 api-version: '1.20'
 authors: [ArcticDev_]

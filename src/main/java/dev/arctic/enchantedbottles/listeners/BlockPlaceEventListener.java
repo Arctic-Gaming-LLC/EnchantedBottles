@@ -15,7 +15,7 @@ public class BlockPlaceEventListener implements Listener {
         Player player = event.getPlayer();
 
         ItemStack item = player.getInventory().getItemInMainHand();
-        if (item.getItemMeta() == null || item.getItemMeta().getPersistentDataContainer().has(EnchantedBottles.key, PersistentDataType.INTEGER)){
+        if (item.getItemMeta() != null && item.getItemMeta().getPersistentDataContainer().has(EnchantedBottles.key, PersistentDataType.INTEGER)){
             event.setCancelled(true);
         }
     }
