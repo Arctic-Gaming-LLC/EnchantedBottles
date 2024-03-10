@@ -1,10 +1,9 @@
 package dev.arctic.enchantedbottles.listeners;
 
 import dev.arctic.enchantedbottles.EnchantedBottles;
+import dev.arctic.enchantedbottles.recipes.EnchantedBottleRecipe;
+import dev.arctic.enchantedbottles.utils.BottleUtil;
 import dev.arctic.enchantedbottles.utils.ExpUtil;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.TextColor;
-import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -17,11 +16,18 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitRunnable;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import java.util.logging.Level;
+
+import static dev.arctic.enchantedbottles.EnchantedBottles.plugin;
+import static dev.arctic.enchantedbottles.utils.BottleUtil.updateEnchantedBottle;
 
 public class PlayerMoveEventListener implements Listener {
 
     private final Map<UUID, Long> playersInCauldrons = new HashMap<>();
+    private final BottleUtil bottleUtil = new BottleUtil();
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
@@ -53,15 +59,15 @@ public class PlayerMoveEventListener implements Listener {
                     if (player == null || !player.isOnline()) {
                         return;
                     }
-                    if (!player.isSneaking() && player.getLevel() == 0 && player.getExp() == 0) {
-                        // If the player has no experience, do not attempt to store more.
-                        return;
-                    }
                     ItemStack item = player.getInventory().getItemInMainHand();
                     ItemMeta meta = item.getItemMeta();
                     if (meta != null && item.getType() != Material.AIR &&
                             meta.getPersistentDataContainer().has(EnchantedBottles.key, PersistentDataType.INTEGER)) {
-                        storePlayerExperience(player, player.isSneaking());
+                        if (item.getAmount() > 1) {
+                            splitExtraBottles(player, item, player.isSneaking());
+                        } else {
+                            storePlayerExperience(player, player.isSneaking());
+                        }
                     }
                 });
             }
@@ -70,7 +76,7 @@ public class PlayerMoveEventListener implements Listener {
 
     private void storePlayerExperience(Player player, boolean isSneaking) {
         //see how much exp the player has now, if that's 0, then just stop.
-        int totalExp = player.calculateTotalExperiencePoints();
+        int totalExp = ExpUtil.calculateExpToLevel(player.getLevel());
         if (totalExp <= 0) return;
 
         //Get the Bottle's information
@@ -80,9 +86,6 @@ public class PlayerMoveEventListener implements Listener {
         //Initialize values!
         int bottleExp = meta.getPersistentDataContainer().get(EnchantedBottles.key, PersistentDataType.INTEGER);
         int maxStorage = EnchantedBottles.MAX_EXP;
-        if (maxStorage == 0) {
-            maxStorage = 2147483647; //set max int value so EXP cannot rollover
-        }
 
         if (bottleExp >= maxStorage) return;
 
@@ -100,38 +103,24 @@ public class PlayerMoveEventListener implements Listener {
             }
         }
 
-
-        //We're finally done, so now we update the item and player's experience.
-        player.setExp(0);
-        player.setLevel(0); // always reset exp to 0 before giving experience
-        player.giveExp(totalExp - expToStore);
-        updateEnchantedBottle(player, item, meta, bottleExp + expToStore);
+        ExpUtil.setPlayerExperience(player, totalExp - expToStore);
+        updateEnchantedBottle(player, item, bottleExp + expToStore);
     }
 
-    static void updateEnchantedBottle(Player player, ItemStack item, ItemMeta meta, int newStoredExp) {
-        meta.getPersistentDataContainer().set(EnchantedBottles.key, PersistentDataType.INTEGER, newStoredExp);
+    private void splitExtraBottles(Player player, ItemStack itemInHand, boolean isSneaking) {
+        int extraBottles = itemInHand.getAmount() - 1;
+        itemInHand.setAmount(1);
 
-        List<Component> newLore = new ArrayList<>();
+        ItemStack extraBottleItem = EnchantedBottleRecipe.item.clone();
+        extraBottleItem.setAmount(extraBottles);
 
-        Component lore1 = Component.text("Stored Exp").decorate(TextDecoration.UNDERLINED).color(TextColor.color(EnchantedBottles.PRIMARY_COLOR));
-        Component lore2 = Component.text(String.valueOf(newStoredExp)).color(EnchantedBottles.SECONDARY_COLOR);
-        Component lore3 = Component.text("Created By").decorate(TextDecoration.UNDERLINED).color(EnchantedBottles.PRIMARY_COLOR);
-        Component lore4 = Component.text(player.getName()).color(EnchantedBottles.SECONDARY_COLOR);
-        Component lore5 = Component.text("------------").color(TextColor.color(0x525252));
-        Component lore6 = Component.text("Left Click to return all levels").color(TextColor.color(0x525252));
-        Component lore7 = Component.text("Stand in a cauldron to store exp gradually").color(TextColor.color(0x525252));
-        Component lore8 = Component.text("Sneak in a cauldron to store all exp").color(TextColor.color(0x525252));
+        player.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
+        HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(extraBottleItem);
+        player.getInventory().setItemInMainHand(itemInHand);
 
-        newLore.add(lore1);
-        newLore.add(lore2);
-        newLore.add(lore3);
-        newLore.add(lore4);
-        newLore.add(lore5);
-        newLore.add(lore6);
-        newLore.add(lore7);
-        newLore.add(lore8);
-        meta.lore(newLore);
-        item.setItemMeta(meta);
-        player.getInventory().setItemInMainHand(item);
+        overflow.forEach((k, v) -> player.getWorld().dropItem(player.getLocation(), v)); // Drop any that didn't fit
+
+        storePlayerExperience(player, isSneaking);
     }
+
 }

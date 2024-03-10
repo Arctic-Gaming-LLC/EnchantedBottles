@@ -4,16 +4,6 @@ import org.bukkit.entity.Player;
 
 public class ExpUtil {
 
-    public static int calculateExpToNextLevel(int level) {
-        if (level <= 15) {
-            return 2 * level + 7;
-        } else if (level <= 30) {
-            return 5 * level - 38;
-        } else {
-            return 9 * level - 158;
-        }
-    }
-
     public static int getTotalExperienceLevel(Player player) {
 
         int high = calculateExpToLevel(player.getLevel());
@@ -22,8 +12,8 @@ public class ExpUtil {
         return high-low;
     }
 
-    public static int getTotalExperienceAll(Player player) {
-        return player.calculateTotalExperiencePoints();
+    public static int getExperienceToNextLevel(Player player) {
+        return calculateExpToLevel(player.getLevel() + 1) - calculateExpToLevel(player.getLevel());
     }
 
     public static int calculateExpToLevel(int level) {
@@ -42,5 +32,11 @@ public class ExpUtil {
             totalExperience += calculateExpToLevel(i);
         }
         return totalExperience;
+    }
+
+    public static void setPlayerExperience(Player player, int totalExp) {
+        player.setLevel(0);
+        player.setExp(0);
+        player.giveExp(totalExp);
     }
 }

@@ -44,6 +44,9 @@ public final class EnchantedBottles extends JavaPlugin implements Listener {
         TEXTURE_URL = getConfig().getString("texture url");
         SHARING_ALLOWED = getConfig().getBoolean("share bottles");
         MAX_EXP = ExpUtil.calculateExpToLevel(getConfig().getInt("level limit"));
+        if (getMAX_EXP() == 0) {
+            setMAX_EXP(2147483647);
+        }
 
         //Add custom bottles to recipes
         EnchantedBottleRecipe recipe = new EnchantedBottleRecipe();

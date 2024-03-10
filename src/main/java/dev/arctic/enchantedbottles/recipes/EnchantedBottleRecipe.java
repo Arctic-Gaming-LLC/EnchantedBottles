@@ -25,6 +25,8 @@ import java.util.UUID;
 
 public class EnchantedBottleRecipe {
 
+    public static ItemStack item;
+
     public void addRecipes() {
         addEnchantedBottleRecipe();
     }
@@ -62,6 +64,8 @@ public class EnchantedBottleRecipe {
         recipe.shape(" A ", "ABA", " A ");
         recipe.setIngredient('A', Material.AMETHYST_SHARD);
         recipe.setIngredient('B', Material.GLASS_BOTTLE);
+
+        this.item = item;
         Bukkit.addRecipe(recipe);
     }
 }
