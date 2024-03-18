@@ -11,6 +11,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class BottleUtil {
 
@@ -28,6 +29,7 @@ public class BottleUtil {
         Component lore6 = Component.text("Left Click to return all levels").color(TextColor.color(0x525252));
         Component lore7 = Component.text("Stand in a cauldron to store exp gradually").color(TextColor.color(0x525252));
         Component lore8 = Component.text("Sneak in a cauldron to store all exp").color(TextColor.color(0x525252));
+        Component lore9 = Component.text(UUID.randomUUID().toString()).color(TextColor.color(0x292929));
 
         newLore.add(lore1);
         newLore.add(lore2);
@@ -37,6 +39,7 @@ public class BottleUtil {
         newLore.add(lore6);
         newLore.add(lore7);
         newLore.add(lore8);
+        newLore.add(lore9);
         meta.lore(newLore);
         item.setItemMeta(meta);
         player.getInventory().setItemInMainHand(item);

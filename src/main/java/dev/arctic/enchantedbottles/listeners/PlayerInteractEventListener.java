@@ -60,7 +60,7 @@ public class PlayerInteractEventListener implements Listener {
                 player.sendMessage(Component.text("No experience stored!").color(TextColor.color(0x94564e)));
                 return;
             }
-            ExpUtil.setPlayerExperience(player, (int) (storedExp + (ExpUtil.getTotalExperienceLevel(player) + player.getExp())));
+            ExpUtil.setPlayerExperience(player, (int) (storedExp + ExpUtil.calculateExpToLevel(player.getLevel()) + player.getExp()));
             player.sendMessage(Component.text("All stored experience has been returned!").color(TextColor.color(0x4e9456)));
             player.getInventory().setItemInMainHand(EnchantedBottleRecipe.item);
             lastUse.put(playerId, System.currentTimeMillis());

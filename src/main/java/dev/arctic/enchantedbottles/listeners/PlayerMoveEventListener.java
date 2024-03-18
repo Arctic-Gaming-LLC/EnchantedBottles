@@ -75,22 +75,17 @@ public class PlayerMoveEventListener implements Listener {
     }
 
     private void storePlayerExperience(Player player, boolean isSneaking) {
-        //see how much exp the player has now, if that's 0, then just stop.
         int totalExp = ExpUtil.calculateExpToLevel(player.getLevel());
         if (totalExp <= 0) return;
-
-        //Get the Bottle's information
         ItemStack item = player.getInventory().getItemInMainHand();
         ItemMeta meta = item.getItemMeta();
 
-        //Initialize values!
         int bottleExp = meta.getPersistentDataContainer().get(EnchantedBottles.key, PersistentDataType.INTEGER);
         int maxStorage = EnchantedBottles.MAX_EXP;
 
         if (bottleExp >= maxStorage) return;
 
         int expToStore = 0;
-        //BEGIN LOGIC! Start by resetting player's exp, so we know it will be added back correctly.
         if (isSneaking) {
             expToStore = totalExp;
             if (expToStore > maxStorage) {
@@ -108,19 +103,20 @@ public class PlayerMoveEventListener implements Listener {
     }
 
     private void splitExtraBottles(Player player, ItemStack itemInHand, boolean isSneaking) {
-        int extraBottles = itemInHand.getAmount() - 1;
-        itemInHand.setAmount(1);
+        int extraBottles = itemInHand.getAmount() - 1; // Calculate the extra bottles
+        itemInHand.setAmount(1); // Reduce the stack in hand to 1
 
-        ItemStack extraBottleItem = EnchantedBottleRecipe.item.clone();
-        extraBottleItem.setAmount(extraBottles);
+        ItemStack extraBottlesStack = EnchantedBottleRecipe.item.clone();
+        extraBottlesStack.setAmount(extraBottles);
 
-        player.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
-        HashMap<Integer, ItemStack> overflow = player.getInventory().addItem(extraBottleItem);
-        player.getInventory().setItemInMainHand(itemInHand);
+        int firstEmpty = player.getInventory().firstEmpty();
 
-        overflow.forEach((k, v) -> player.getWorld().dropItem(player.getLocation(), v)); // Drop any that didn't fit
+        if (firstEmpty != -1) {
+            player.getInventory().setItem(firstEmpty, extraBottlesStack);
+        } else {
+            player.getWorld().dropItemNaturally(player.getLocation(), extraBottlesStack);
+        }
 
-        storePlayerExperience(player, isSneaking);
+        storePlayerExperience(player, isSneaking); // Handle experience storing as needed
     }
-
 }
