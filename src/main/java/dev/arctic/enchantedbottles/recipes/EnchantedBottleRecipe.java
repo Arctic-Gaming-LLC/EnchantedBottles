@@ -1,10 +1,8 @@
 package dev.arctic.enchantedbottles.recipes;
 
 import com.destroystokyo.paper.profile.PlayerProfile;
-import com.destroystokyo.paper.profile.ProfileProperty;
 import dev.arctic.enchantedbottles.EnchantedBottles;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -51,7 +49,7 @@ public class EnchantedBottleRecipe {
         item.setItemMeta(headMeta);
 
         ItemMeta meta = item.getItemMeta();
-        meta.addEnchant(Enchantment.DURABILITY, 1, false);
+        meta.addEnchant(Enchantment.UNBREAKING, 1, false);
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
         meta.getPersistentDataContainer().set(keyInteger, PersistentDataType.INTEGER, 0);
 
@@ -65,7 +63,7 @@ public class EnchantedBottleRecipe {
         recipe.setIngredient('A', Material.AMETHYST_SHARD);
         recipe.setIngredient('B', Material.GLASS_BOTTLE);
 
-        this.item = item;
+        EnchantedBottleRecipe.item = item;
         Bukkit.addRecipe(recipe);
     }
 }
