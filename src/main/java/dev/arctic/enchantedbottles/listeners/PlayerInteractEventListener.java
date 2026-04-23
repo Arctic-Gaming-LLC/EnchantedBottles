@@ -2,68 +2,66 @@ package dev.arctic.enchantedbottles.listeners;
 
 import dev.arctic.enchantedbottles.EnchantedBottles;
 import dev.arctic.enchantedbottles.recipes.EnchantedBottleRecipe;
-import dev.arctic.enchantedbottles.utils.BottleUtil;
 import dev.arctic.enchantedbottles.utils.ExpUtil;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.TextColor;
-import org.bukkit.Material;
+import dev.arctic.iceStorm.items.PDC;
+import dev.arctic.iceStorm.utils.MiniUtil;
+import dev.arctic.icestorm.libs.fastutil.objects.Object2LongOpenHashMap;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataType;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
 import org.bukkit.event.block.Action;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.persistence.PersistentDataType;
+
+import java.util.UUID;
 
 public class PlayerInteractEventListener implements Listener {
 
-    private final Map<UUID, Long> lastUse = new HashMap<>();
     private static final long COOLDOWN_MS = 500;
+    private final Object2LongOpenHashMap<UUID> lastUse = new Object2LongOpenHashMap<>();
 
     @EventHandler
-    public void playerInteractEventListener(PlayerInteractEvent event) {
-        Player player = event.getPlayer();
-        UUID playerId = player.getUniqueId();
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        var action = event.getAction();
+        if (action != Action.LEFT_CLICK_AIR && action != Action.LEFT_CLICK_BLOCK) return;
 
-        boolean sharingEnabled = EnchantedBottles.getPlugin().getConfig().getBoolean("share bottles");
+        var player = event.getPlayer();
+        var item   = player.getInventory().getItemInMainHand();
 
-        if (lastUse.containsKey(playerId) && System.currentTimeMillis() - lastUse.get(playerId) < COOLDOWN_MS) {
-            player.sendMessage("Please wait before using this again.");
+        if (!PDC.has(item, EnchantedBottles.BOTTLE_KEY, PersistentDataType.LONG)) return;
+
+        event.setCancelled(true);
+
+        // Cooldown
+        long now      = System.currentTimeMillis();
+        long lastTime = lastUse.getLong(player.getUniqueId()); // returns 0L if absent
+        if (now - lastTime < COOLDOWN_MS) return;
+
+        // Ownership check (PDC-based — no lore parsing)
+        if (!EnchantedBottles.config.isShareBottles()) {
+            String creator = PDC.get(item, EnchantedBottles.CREATOR_KEY, PersistentDataType.STRING);
+            if (creator != null && !player.getUniqueId().toString().equals(creator)) {
+                player.sendMessage(MiniUtil.resolve(
+                        "<icon_red_exclaim> <red>This bottle belongs to someone else!"));
+                return;
+            }
+        }
+
+        long storedExp = PDC.getOrDefault(item, EnchantedBottles.BOTTLE_KEY, PersistentDataType.LONG, 0L);
+        if (storedExp == 0L) {
+            player.sendMessage(MiniUtil.resolve("<icon_red_exclaim> <red>This bottle is empty!"));
             return;
         }
 
-        ItemStack item = player.getInventory().getItemInMainHand();
-        ItemMeta meta = item.getItemMeta();
+        // Return all stored exp on top of whatever the player already has, clamped to int range
+        long combined = (long) ExpUtil.getTotalPlayerExp(player) + storedExp;
+        ExpUtil.setPlayerExperience(player, (int) Math.min(combined, Integer.MAX_VALUE));
 
-        if (!sharingEnabled) {
-            List<Component> lore = meta.lore();
-            if (lore != null && lore.size() >= 4) {
-                Component playerNameComponent = Component.text(player.getName()).color(EnchantedBottles.SECONDARY_COLOR);
-                Component fourthLoreComponent = lore.get(3);
-                if (!fourthLoreComponent.equals(playerNameComponent)) {
-                    player.sendMessage("You cannot use this!");
-                    return;
-                }
-            }
-        }
+        // Reset the bottle to the clean empty template
+        player.getInventory().setItemInMainHand(EnchantedBottleRecipe.item.clone());
+        lastUse.put(player.getUniqueId(), now);
 
-        if ((event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK) && meta != null && meta.getPersistentDataContainer().has(EnchantedBottles.key, PersistentDataType.INTEGER)) {
-            event.setCancelled(true);
-            int storedExp = meta.getPersistentDataContainer().get(EnchantedBottles.key, PersistentDataType.INTEGER);
-            if (storedExp == 0) {
-                player.sendMessage(Component.text("No experience stored!").color(TextColor.color(0x94564e)));
-                return;
-            }
-            ExpUtil.setPlayerExperience(player, (int) (storedExp + ExpUtil.calculateExpToLevel(player.getLevel()) + player.getExp()));
-            player.sendMessage(Component.text("All stored experience has been returned!").color(TextColor.color(0x4e9456)));
-            player.getInventory().setItemInMainHand(EnchantedBottleRecipe.item);
-            lastUse.put(playerId, System.currentTimeMillis());
-        }
+        player.sendMessage(MiniUtil.resolve(
+                "<icon_green_exclaim> <color:#4e9456>All stored experience has been returned!"));
     }
 }

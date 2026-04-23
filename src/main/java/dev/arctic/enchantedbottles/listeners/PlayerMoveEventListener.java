@@ -4,119 +4,130 @@ import dev.arctic.enchantedbottles.EnchantedBottles;
 import dev.arctic.enchantedbottles.recipes.EnchantedBottleRecipe;
 import dev.arctic.enchantedbottles.utils.BottleUtil;
 import dev.arctic.enchantedbottles.utils.ExpUtil;
+import dev.arctic.iceStorm.items.PDC;
+import dev.arctic.icestorm.libs.fastutil.objects.ObjectOpenHashSet;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitRunnable;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
-import java.util.logging.Level;
-
-import static dev.arctic.enchantedbottles.EnchantedBottles.plugin;
-import static dev.arctic.enchantedbottles.utils.BottleUtil.updateEnchantedBottle;
 
 public class PlayerMoveEventListener implements Listener {
 
-    private final Map<UUID, Long> playersInCauldrons = new HashMap<>();
-    private final BottleUtil bottleUtil = new BottleUtil();
+    /** Bottles can hold up to 2 billion XP — huge but safe from int rollover. */
+    static final long MAX_BOTTLE_EXP = 2_000_000_000L;
+
+    private final Set<UUID> playersInCauldrons = new ObjectOpenHashSet<>();
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
-        Player player = event.getPlayer();
-        UUID playerId = player.getUniqueId();
-        Block block = player.getLocation().getBlock();
-        Block belowBlock = player.getLocation().subtract(0, 1, 0).getBlock();
-        ItemStack item = player.getInventory().getItemInMainHand();
-        ItemMeta meta = item.getItemMeta();
+        // Only react on block-level position changes to avoid per-frame spam
+        var from = event.getFrom();
+        var to   = event.getTo();
+        if (to == null) return;
+        if (from.getBlockX() == to.getBlockX()
+                && from.getBlockY() == to.getBlockY()
+                && from.getBlockZ() == to.getBlockZ()) return;
 
-        boolean isInCauldron = (block.getType() == Material.CAULDRON || block.getType() == Material.WATER_CAULDRON ||
-                belowBlock.getType() == Material.CAULDRON || belowBlock.getType() == Material.WATER_CAULDRON) &&
-                meta != null && item.getType() != Material.AIR &&
-                meta.getPersistentDataContainer().has(EnchantedBottles.key, PersistentDataType.INTEGER);
+        var player = event.getPlayer();
 
-        if (isInCauldron) {
-            playersInCauldrons.put(playerId, System.currentTimeMillis());
-        } else {
-            playersInCauldrons.remove(playerId);
+        // ── Fast path: block-type check is cheap — do it before any PDC read ──────
+        var loc        = player.getLocation();
+        var block      = loc.getBlock();
+        var belowBlock = loc.subtract(0, 1, 0).getBlock();
+        boolean inCauldron = block.getType()      == Material.WATER_CAULDRON
+                          || belowBlock.getType() == Material.WATER_CAULDRON;
+
+        if (!inCauldron) {
+            playersInCauldrons.remove(player.getUniqueId());
+            return;
         }
+
+        // ── Player is in/above a cauldron — now check for an enchanted bottle ─────
+        var item = player.getInventory().getItemInMainHand();
+        if (!PDC.has(item, EnchantedBottles.BOTTLE_KEY, PersistentDataType.LONG)) {
+            playersInCauldrons.remove(player.getUniqueId());
+            return;
+        }
+
+        playersInCauldrons.add(player.getUniqueId());
     }
 
     public void startExpDrainTask() {
         new BukkitRunnable() {
             @Override
             public void run() {
-                playersInCauldrons.keySet().forEach(playerId -> {
+                for (var playerId : Set.copyOf(playersInCauldrons)) {
                     Player player = Bukkit.getPlayer(playerId);
                     if (player == null || !player.isOnline()) {
-                        return;
+                        playersInCauldrons.remove(playerId);
+                        continue;
                     }
-                    ItemStack item = player.getInventory().getItemInMainHand();
-                    ItemMeta meta = item.getItemMeta();
-                    if (meta != null && item.getType() != Material.AIR &&
-                            meta.getPersistentDataContainer().has(EnchantedBottles.key, PersistentDataType.INTEGER)) {
-                        if (item.getAmount() > 1) {
-                            splitExtraBottles(player, item, player.isSneaking());
-                        } else {
-                            storePlayerExperience(player, player.isSneaking());
-                        }
+
+                    var item = player.getInventory().getItemInMainHand();
+                    if (!PDC.has(item, EnchantedBottles.BOTTLE_KEY, PersistentDataType.LONG)) {
+                        playersInCauldrons.remove(playerId);
+                        continue;
                     }
-                });
+
+                    if (item.getAmount() > 1) {
+                        splitExtraBottles(player, item);
+                    } else {
+                        storePlayerExperience(player, player.isSneaking());
+                    }
+                }
             }
-        }.runTaskTimer(EnchantedBottles.getPlugin(), 20L, 20L);
+        }.runTaskTimer(EnchantedBottles.plugin, 20L, 20L);
     }
 
     private void storePlayerExperience(Player player, boolean isSneaking) {
-        int totalExp = ExpUtil.calculateExpToLevel(player.getLevel());
-        if (totalExp <= 0) return;
-        ItemStack item = player.getInventory().getItemInMainHand();
-        ItemMeta meta = item.getItemMeta();
+        int playerTotalExp = ExpUtil.getTotalPlayerExp(player);
+        if (playerTotalExp <= 0) return;
 
-        int bottleExp = meta.getPersistentDataContainer().get(EnchantedBottles.key, PersistentDataType.INTEGER);
-        int maxStorage = EnchantedBottles.MAX_EXP;
+        var item       = player.getInventory().getItemInMainHand();
+        long bottleExp = PDC.getOrDefault(item, EnchantedBottles.BOTTLE_KEY, PersistentDataType.LONG, 0L);
 
-        if (bottleExp >= maxStorage) return;
+        if (bottleExp >= MAX_BOTTLE_EXP) return; // bottle is full — nothing to absorb
 
-        int expToStore = 0;
+        int expToStore;
         if (isSneaking) {
-            expToStore = totalExp;
-            if (expToStore > maxStorage) {
-                expToStore = maxStorage;
-            }
+            // Absorb everything in one tick
+            expToStore = playerTotalExp;
         } else {
-            expToStore = ExpUtil.getTotalExperienceLevel(player);
-            if (expToStore + bottleExp > maxStorage) {
-                expToStore = maxStorage - bottleExp;
-            }
+            // Absorb one level's worth per tick
+            int oneLevelExp = ExpUtil.getOneLevelExp(player);
+            if (oneLevelExp <= 0) return;
+            expToStore = oneLevelExp;
         }
 
-        ExpUtil.setPlayerExperience(player, totalExp - expToStore);
-        updateEnchantedBottle(player, item, bottleExp + expToStore);
+        long newBottleExp  = Math.min(bottleExp + expToStore, MAX_BOTTLE_EXP);
+        int  actualStored  = (int) (newBottleExp - bottleExp); // capped portion actually taken
+
+        ExpUtil.setPlayerExperience(player, playerTotalExp - actualStored);
+        BottleUtil.updateEnchantedBottle(player, item, newBottleExp);
     }
 
-    private void splitExtraBottles(Player player, ItemStack itemInHand, boolean isSneaking) {
-        int extraBottles = itemInHand.getAmount() - 1; // Calculate the extra bottles
-        itemInHand.setAmount(1); // Reduce the stack in hand to 1
+    private void splitExtraBottles(Player player, ItemStack itemInHand) {
+        int extras = itemInHand.getAmount() - 1;
+        itemInHand.setAmount(1);
 
-        ItemStack extraBottlesStack = EnchantedBottleRecipe.item.clone();
-        extraBottlesStack.setAmount(extraBottles);
+        var extraStack = EnchantedBottleRecipe.item.clone();
+        extraStack.setAmount(extras);
 
-        int firstEmpty = player.getInventory().firstEmpty();
-
-        if (firstEmpty != -1) {
-            player.getInventory().setItem(firstEmpty, extraBottlesStack);
+        int slot = player.getInventory().firstEmpty();
+        if (slot != -1) {
+            player.getInventory().setItem(slot, extraStack);
         } else {
-            player.getWorld().dropItemNaturally(player.getLocation(), extraBottlesStack);
+            player.getWorld().dropItemNaturally(player.getLocation(), extraStack);
         }
 
-        storePlayerExperience(player, isSneaking); // Handle experience storing as needed
+        storePlayerExperience(player, player.isSneaking());
     }
 }

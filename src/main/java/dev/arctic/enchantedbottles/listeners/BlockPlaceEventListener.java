@@ -1,21 +1,18 @@
 package dev.arctic.enchantedbottles.listeners;
 
 import dev.arctic.enchantedbottles.EnchantedBottles;
-import org.bukkit.entity.Player;
+import dev.arctic.iceStorm.items.PDC;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockPlaceEvent;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
 public class BlockPlaceEventListener implements Listener {
 
     @EventHandler
-    public static void blockPlaceEventListener(BlockPlaceEvent event){
-        Player player = event.getPlayer();
-
-        ItemStack item = player.getInventory().getItemInMainHand();
-        if (item.getItemMeta() != null && item.getItemMeta().getPersistentDataContainer().has(EnchantedBottles.key, PersistentDataType.INTEGER)){
+    public void onBlockPlace(BlockPlaceEvent event) {
+        var item = event.getPlayer().getInventory().getItemInMainHand();
+        if (PDC.has(item, EnchantedBottles.BOTTLE_KEY, PersistentDataType.LONG)) {
             event.setCancelled(true);
         }
     }

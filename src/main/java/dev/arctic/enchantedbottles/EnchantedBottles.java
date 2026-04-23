@@ -1,86 +1,62 @@
 package dev.arctic.enchantedbottles;
 
+import dev.arctic.enchantedbottles.commands.MendCommand;
+import dev.arctic.enchantedbottles.config.EBConfig;
 import dev.arctic.enchantedbottles.listeners.BlockPlaceEventListener;
+import dev.arctic.enchantedbottles.listeners.BottleDropListener;
 import dev.arctic.enchantedbottles.listeners.PlayerInteractEventListener;
 import dev.arctic.enchantedbottles.listeners.PlayerMoveEventListener;
 import dev.arctic.enchantedbottles.recipes.EnchantedBottleRecipe;
-import dev.arctic.enchantedbottles.utils.ExpUtil;
-import lombok.Getter;
-import lombok.Setter;
-import net.kyori.adventure.text.format.TextColor;
-import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
-import org.bukkit.event.Listener;
-import org.bukkit.plugin.Plugin;
-import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.logging.Level;
-
-public final class EnchantedBottles extends JavaPlugin implements Listener {
+public final class EnchantedBottles extends JavaPlugin {
 
     public static EnchantedBottles plugin;
-    public static NamespacedKey key = new NamespacedKey("enchanted_bottles", "stored_exp");
 
-    @Getter @Setter public static TextColor TITLE_COLOR;
-    @Getter @Setter public static TextColor PRIMARY_COLOR;
-    @Getter @Setter public static TextColor SECONDARY_COLOR;
-    @Getter @Setter public static String TEXTURE_URL;
-    @Getter @Setter public static boolean SHARING_ALLOWED;
-    @Getter @Setter public static int MAX_EXP;
+    public static EBConfig config;
+
+    /** PDC key for the stored exp value on a bottle. Namespace kept as "enchanted_bottles"
+     *  so bottles crafted in earlier versions remain compatible. */
+    public static NamespacedKey BOTTLE_KEY;
+
+    /** PDC key for the UUID string of whoever first deposited into the bottle. */
+    public static NamespacedKey CREATOR_KEY;
 
     @Override
     public void onEnable() {
-        // Plugin startup logic
         plugin = this;
 
-        //Making a change to test webhooks
-        getConfig();
-        saveDefaultConfig();
+        BOTTLE_KEY  = new NamespacedKey("enchanted_bottles", "stored_exp");
+        CREATOR_KEY = new NamespacedKey("enchanted_bottles", "creator");
 
-        TITLE_COLOR = TextColor.fromHexString(getConfig().getString("Colors.title color"));
-        PRIMARY_COLOR = TextColor.fromHexString(getConfig().getString("Colors.primary color"));
-        SECONDARY_COLOR = TextColor.fromHexString(getConfig().getString("Colors.secondary color"));
-        TEXTURE_URL = getConfig().getString("texture url");
-        SHARING_ALLOWED = getConfig().getBoolean("share bottles");
-        MAX_EXP = ExpUtil.calculateExpToLevel(getConfig().getInt("level limit"));
-        if (getMAX_EXP() == 0) {
-            setMAX_EXP(2147483647);
+        config = new EBConfig(getDataFolder().toPath(), getLogger());
+        if (!config.isValid()) {
+            getLogger().severe("Config failed to load — disabling EnchantedBottles.");
+            getServer().getPluginManager().disablePlugin(this);
+            return;
         }
 
-        //Add custom bottles to recipes
-        EnchantedBottleRecipe recipe = new EnchantedBottleRecipe();
-        recipe.addRecipes();
-        plugin.getLogger().log(Level.WARNING, "[Enchanted Bottles] Recipes Loaded!");
+        new EnchantedBottleRecipe().addRecipes();
+        getLogger().info("Recipes loaded.");
 
-        //Register Listeners
-        Bukkit.getPluginManager().registerEvents(this, this);
-        final PluginManager pm = getServer().getPluginManager();
+        var pm = getServer().getPluginManager();
         pm.registerEvents(new PlayerInteractEventListener(), this);
         pm.registerEvents(new BlockPlaceEventListener(), this);
+        pm.registerEvents(new BottleDropListener(), this);
 
-        PlayerMoveEventListener moveEventListener = new PlayerMoveEventListener();
-        pm.registerEvents(moveEventListener, this);
-        moveEventListener.startExpDrainTask();
+        var moveListener = new PlayerMoveEventListener();
+        pm.registerEvents(moveListener, this);
+        moveListener.startExpDrainTask();
 
-        plugin.getLogger().log(Level.WARNING, "[Enchanted Bottles] Plugin Loaded!");
+        var mend = getCommand("mend");
+        if (mend != null) mend.setExecutor(new MendCommand());
+
+        getLogger().info("EnchantedBottles v" + getDescription().getVersion() + " enabled.");
     }
 
     @Override
     public void onDisable() {
-        // Plugin shutdown logic
-    }
-
-    public static Plugin getPlugin() {
-        return plugin;
-    }
-
-    public void reloadConfigDefaults() {
-        TITLE_COLOR = TextColor.fromHexString(getConfig().getString("Colors.title color"));
-        PRIMARY_COLOR = TextColor.fromHexString(getConfig().getString("Colors.primary color"));
-        SECONDARY_COLOR = TextColor.fromHexString(getConfig().getString("Colors.secondary color"));
-        TEXTURE_URL = getConfig().getString("texture url");
-        SHARING_ALLOWED = getConfig().getBoolean("share bottles");
-        MAX_EXP = ExpUtil.getTotalExperienceAtLevel(getConfig().getInt("level limit"));
+        getLogger().info("EnchantedBottles disabled.");
     }
 }

@@ -1,6 +1,18 @@
 name: EnchantedBottles
 version: '${version}'
 main: dev.arctic.enchantedbottles.EnchantedBottles
-api-version: '1.18'
+api-version: '1.21'
 authors: [ArcticDev_]
 description: A Bottle that eats experience
+depend: [IceStorm]
+
+commands:
+  mend:
+    description: Use your experience to repair Mending-enchanted items
+    usage: /mend
+    permission: enchantedbottles.mend
+
+permissions:
+  enchantedbottles.mend:
+    description: Allows use of the /mend command
+    default: true
